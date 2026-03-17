@@ -1,7 +1,7 @@
 name: Qwen AOT Build
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动点击运行
   push:
     tags: ["v*"]
 
@@ -15,13 +15,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows 系列 (全架构)
+          # --- Windows (全架构) ---
           - { rid: win-x64, os: windows-latest, ext: zip }
           - { rid: win-x86, os: windows-latest, ext: zip }
           - { rid: win-arm64, os: windows-latest, ext: zip }
-          # Linux 系列 (只保留最稳的 x64)
+          
+          # --- Linux (x64 和 原生 ARM64 服务器) ---
           - { rid: linux-x64, os: ubuntu-latest, ext: tar.gz }
-          # macOS 系列 (修复了 macos-13 报错，统一使用 macos-latest)
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, ext: tar.gz } # <- 核心秘籍：调用纯 ARM 服务器！
+          
+          # --- macOS (修复 13 报错，统一用 latest) ---
           - { rid: osx-x64, os: macos-latest, ext: tar.gz }
           - { rid: osx-arm64, os: macos-latest, ext: tar.gz }
 
@@ -32,8 +35,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Linux x64 环境准备
       - name: Install Linux x64 Env
         if: matrix.rid == 'linux-x64'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # Linux ARM64 环境准备 (因为是原生 ARM 服务器，直接装普通包即可)
+      - name: Install Linux arm64 Env
+        if: matrix.rid == 'linux-arm64'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
       - name: Build AOT
