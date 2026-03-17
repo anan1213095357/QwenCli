@@ -1,5 +1,4 @@
-# 🤖 QwenCLI - Intelligent DevOps Automation Agent
-
+<img src="./141221163.png" alt="QwenCLI Logo" width="32" height="32" style="vertical-align: middle; margin-right: 10px;"> QwenCLI - Intelligent DevOps Automation Agent
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
