@@ -60,6 +60,7 @@ jobs:
 
       - name: Upload
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: latest # 强行指定版本号为 latest
+          name: "最新自动构建版" # 自动生成的标题
           files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
