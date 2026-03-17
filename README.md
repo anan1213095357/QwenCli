@@ -3,7 +3,8 @@
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square)
+![Platform](https://img.shields.io/badge/Platform-Win%20%7C%20Mac%20%7C%20Linux-blue?style=flat-square)
+![Arch](https://img.shields.io/badge/Arch-x86%20%7C%20x64%20%7C%20ARM32%20%7C%20ARM64-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-v1.5.0-orange?style=flat-square)
 
@@ -17,7 +18,7 @@
 
 ## 📖 项目简介
 
-**QwenCLI** 是一款基于大语言模型的智能运维自动化命令行工具。它通过自然语言交互，帮助你快速执行系统命令、管理文件、分析日志，让繁琐的运维工作变得简单高效。
+**QwenCLI** 是一款基于千问大语言模型的智能运维自动化命令行工具。它通过自然语言交互，帮助你快速执行系统命令、管理文件、分析日志，让繁琐的运维工作变得简单高效。
 
 只需输入自然语言指令，QwenCLI 就能理解你的意图，自动调用合适的工具完成任务 —— 就像有一个 24 小时在线的运维专家随时待命。
 
@@ -130,15 +131,15 @@ export QWENCLI_MODEL="qwen3.5-plus"
 ### 界面预览
 
 ```
-    ___    _   __      ________    ____
-   /   |  / | / /     / ____/ /   /  _/
-  / /| | /  |/ /_____/ /   / /    / /  
- / ___ |/ /|  /_____/ /___/ /____/ /   
-/_/  |_/_/ |_/      \____/_____/___/   
+   ____                       ________    ____ 
+  / __ \_      _____  ____   / ____/ /   /  _/ 
+ / / / / | /| / / _ \/ __ \ / /   / /    / /   
+/ /_/ /| |/ |/ /  __/ / / // /___/ /____/ /    
+\___\_\|__/|__/\___/_/ /_/ \____/_____/___/
 
-v1.5.0 | 跨平台运维工具 | by using_unfase
+v1.5.0 | 千问跨平台运维工具 | by 奶茶叔叔
 
-终端运维 Agent 已接入系统 (支持全量文件操作)。
+终端运维 Agent 已接入系统。
 提示：请输入部署或运维指令 (输入 'exit' 终止连接)
 -------------------------------------------------------
 ```
@@ -149,7 +150,7 @@ v1.5.0 | 跨平台运维工具 | by using_unfase
 
 ```
 QwenCLI/
-├── QwenCLI.csproj              # 项目配置文件
+├── QwenCLI.csproj            # 项目配置文件
 ├── Program.cs                # 主程序入口
 ├── README.md                 # 项目说明文档
 ├── .gitignore                # Git 忽略规则
@@ -213,7 +214,7 @@ QwenCLI/
 
 <div align="center">
 
-**Made with ❤️ by 楠哥**
+**Made with ❤️ by 奶茶叔叔**
 
 如果这个项目对你有帮助，请给一个 ⭐ Star 支持一下！
 
