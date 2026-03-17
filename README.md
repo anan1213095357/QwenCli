@@ -1,4 +1,4 @@
-# 🤖 AnCli - 智能运维自动化 Agent
+# 🤖 QwenCLI - 智能运维自动化 Agent
 
 <div align="center">
 
@@ -15,9 +15,9 @@
 
 ## 📖 项目简介
 
-**AnCli** 是一款基于大语言模型的智能运维自动化命令行工具。它通过自然语言交互，帮助你快速执行系统命令、管理文件、分析日志，让繁琐的运维工作变得简单高效。
+**QwenCLI** 是一款基于大语言模型的智能运维自动化命令行工具。它通过自然语言交互，帮助你快速执行系统命令、管理文件、分析日志，让繁琐的运维工作变得简单高效。
 
-只需输入自然语言指令，AnCli 就能理解你的意图，自动调用合适的工具完成任务 —— 就像有一个 24 小时在线的运维专家随时待命。
+只需输入自然语言指令，QwenCLI 就能理解你的意图，自动调用合适的工具完成任务 —— 就像有一个 24 小时在线的运维专家随时待命。
 
 ---
 
@@ -44,8 +44,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/anan1213095357/AnCli.git
-cd AnCli/AnCli
+git clone https://github.com/anan1213095357/QwenCLI.git
+cd QwenCLI/QwenCLI
 
 # 还原依赖
 dotnet restore
@@ -56,7 +56,7 @@ cp appsettings.example.json appsettings.json
 # 然后编辑 appsettings.json 填入你的 API Key
 
 # 方式 2: 使用环境变量
-setx ANCLI_API_KEY "sk-your-api-key-here"
+setx QWENCLI_API_KEY "sk-your-api-key-here"
 
 # 运行项目
 dotnet run
@@ -93,14 +93,14 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 ```bash
 # Windows
-setx ANCLI_API_KEY "sk-your-api-key-here"
-setx ANCLI_ENDPOINT "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-setx ANCLI_MODEL "qwen3.5-plus"
+setx QWENCLI_API_KEY "sk-your-api-key-here"
+setx QWENCLI_ENDPOINT "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+setx QWENCLI_MODEL "qwen3.5-plus"
 
 # Linux / macOS
-export ANCLI_API_KEY="sk-your-api-key-here"
-export ANCLI_ENDPOINT="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-export ANCLI_MODEL="qwen3.5-plus"
+export QWENCLI_API_KEY="sk-your-api-key-here"
+export QWENCLI_ENDPOINT="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+export QWENCLI_MODEL="qwen3.5-plus"
 ```
 
 > 🔒 **安全提示**: `appsettings.json` 已加入 `.gitignore`，不会被提交到 Git 仓库。请勿手动将包含真实 API Key 的文件上传到公共仓库。
@@ -109,7 +109,7 @@ export ANCLI_MODEL="qwen3.5-plus"
 
 ## 💡 使用示例
 
-启动 AnCli 后，你可以输入各种自然语言指令：
+启动 QwenCLI 后，你可以输入各种自然语言指令：
 
 ```
 > 帮我查看当前目录有哪些文件
@@ -146,8 +146,8 @@ v1.5.0 | 跨平台运维工具 | by using_unfase
 ## 🏗️ 项目结构
 
 ```
-AnCli/
-├── AnCli.csproj              # 项目配置文件
+QwenCLI/
+├── QwenCLI.csproj              # 项目配置文件
 ├── Program.cs                # 主程序入口
 ├── README.md                 # 项目说明文档
 ├── .gitignore                # Git 忽略规则
@@ -216,3 +216,4 @@ AnCli/
 如果这个项目对你有帮助，请给一个 ⭐ Star 支持一下！
 
 </div>
+

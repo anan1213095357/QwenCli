@@ -18,7 +18,7 @@ var tools = JsonNode.Parse("""
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
-var apiKey = GetConfig("ApiKey");
+var apiKey = GetConfig("ApiKey"); 
 if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your"))
 {
     Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("错误：未配置 API Key！请设置环境变量或修改 appsettings.json。"); Console.ResetColor();
@@ -35,16 +35,16 @@ async Task Think(CancellationToken ct)
 }
 Console.Clear(); Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine(@"
-    ___    _   __      ________    ____
-   /   |  / | / /     / ____/ /   /  _/
-  / /| | /  |/ /_____/ /   / /    / /  
- / ___ |/ /|  /_____/ /___/ /____/ /   
-/_/  |_/_/ |_/      \____/_____/___/   
+   ____                       ________    ____ 
+  / __ \_      _____  ____   / ____/ /   /  _/ 
+ / / / / | /| / / _ \/ __ \ / /   / /    / /   
+/ /_/ /| |/ |/ /  __/ / / // /___/ /____/ /    
+\___\_\|__/|__/\___/_/ /_/ \____/_____/___/    
 ");
 Console.ForegroundColor = ConsoleColor.DarkGray;
-Console.WriteLine("v1.5.0 | 跨平台运维工具 by using_unfase\n");
+Console.WriteLine("v1.5.0 | 千问跨平台运维工具 by 奶茶叔叔\n");
 Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("终端运维 Agent 已接入系统."); Console.ResetColor();
+Console.WriteLine($"终端运维 Agent 已接入系统。当前模型：[ {GetConfig("Model", "qwen3.5-plus")} ]"); Console.ResetColor();
 while (true)
 {
     Console.Write("\n> ");
