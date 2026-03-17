@@ -3,9 +3,9 @@
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square)
+![Platform](https://img.shields.io/badge/Platform-Win%20%7C%20Linux%20%7C%20macOS%20%7C%20ARM32%2F64-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![Version](https://img.shields.io/badge/Version-v1.5.0-orange?style=flat-square)
+![Version](https://img.shields.io/badge/Version-v2.0.0-orange?style=flat-square)
 
 **让 AI 成为你的运维助手 | 命令行里的智能自动化专家**
 
