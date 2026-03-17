@@ -35,47 +35,45 @@ jobs:
       # 环境准备
       - name: Install Linux Dependencies
         if: startsWith(matrix.rid, 'linux')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang zlib1g-dev build-essential
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev build-essential
 
-      # 1. 编译 AOT
+      # 1. 编译 AOT (输出到 publish_raw 文件夹)
       - name: Build AOT
         run: >
           dotnet publish -c Release 
           -r ${{ matrix.rid }} 
           -p:PublishAot=true 
           -p:StripSymbols=true 
-          -o ./publish_out
+          -o ./publish_raw
 
-      # 2. 核心修复：自动定位并移动文件
-      # 无论 dotnet 把文件放在 ./publish_out 还是 ./publish_out/publish
-      # 我们都把它统一挪到根目录下的 ./release_dist
-      - name: Prepare Binary
+      # 2. 关键修复：暴力搜索并对齐文件名
+      # 不管文件在哪个子目录，不管它叫 QwenCli 还是 qwencli，通通搜出来改名为统一的名字
+      - name: Locate and Fix Binary
         shell: bash
         run: |
-          mkdir -p ./release_dist
-          # 查找生成的可执行文件（排除 .pdb, .dbg 等杂质）
-          find ./publish_out -type f \( -name "${{ matrix.exe }}" -o -name "${{ matrix.exe }}*" \) -not -name "*.pdb" -not -name "*.dbg" -exec cp {} ./release_dist/ \;
-          echo "Files in release_dist:"
-          ls ./release_dist/
+          mkdir -p ./final_out
+          # 在编译输出目录中搜索可执行文件
+          # 排除 pdb, json, dbg 等杂项文件，只抓取二进制主体
+          find ./publish_raw -type f ! -name "*.pdb" ! -name "*.json" ! -name "*.dbg" ! -name "*.xml" -exec cp {} ./final_out/${{ matrix.exe }} \;
+          echo "确认搜索到的文件内容："
+          ls -lh ./final_out/
 
-      # 3. 只有特定平台走 UPX
+      # 3. UPX 压缩 (只针对 x64)
+      # 现在路径统一成了 ./final_out/文件名，UPX 绝对不会再丢了
       - name: Compress with UPX
         uses: svenstaro/upx-action@v2
         if: matrix.rid == 'win-x64' || matrix.rid == 'linux-x64'
         with:
-          # 直接指向我们准备好的 release_dist 目录
-          files: release_dist/${{ matrix.exe }}
+          files: ./final_out/${{ matrix.exe }}
           args: -9
           strip: false 
 
-      # 4. 统一打包
+      # 4. 打包输出
       - name: Create Archive
         shell: bash
         run: |
-          cd ./release_dist
-          # 给 Unix 系统加权限
+          cd ./final_out
+          # Linux/macOS 赋予执行权限
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
             chmod +x *
           fi
