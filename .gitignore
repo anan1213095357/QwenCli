@@ -1,0 +1,25 @@
+# 编译输出
+bin/
+obj/
+
+# 用户特定文件
+*.user
+
+# Visual Studio
+.vs/
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 其他
+*.log
+*.tmp
+
+# ===== 敏感配置文件（不要提交到 Git）=====
+appsettings.json
+*.secret
+*.env
+
+# 包含敏感信息的配置文件
+**/appsettings.local.json
+**/appsettings.*.local.json
