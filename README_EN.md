@@ -1,4 +1,4 @@
-<img src="./141221163.png" alt="QwenCLI Logo" width="32" height="32" style="vertical-align: middle; margin-right: 10px;"> <h3>QwenCLI - Intelligent DevOps Automation Agent</h3>
+<img src="./141221163.png" alt="QwenCLI Logo" width="32" height="32" style="vertical-align: middle; margin-right: 10px;"> <span style="font-size:32px">QwenCLI - Intelligent DevOps Automation Agent</span>
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
