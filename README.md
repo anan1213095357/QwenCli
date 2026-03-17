@@ -9,6 +9,8 @@
 
 **让 AI 成为你的运维助手 | 命令行里的智能自动化专家**
 
+**🌐 语言切换 | Language:** [中文](README.md) | [English](README_EN.md)
+
 </div>
 
 ---
