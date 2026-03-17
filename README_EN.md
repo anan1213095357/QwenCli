@@ -130,11 +130,11 @@ After starting QwenCLI, you can input various natural language instructions:
 ### Interface Preview
 
 ```
-    ___    _   __      ________    ____
-   /   |  / | / /     / ____/ /   /  _/
-  / /| | /  |/ /_____/ /   / /    / /  
- / ___ |/ /|  /_____/ /___/ /____/ /   
-/_/  |_/_/ |_/      \____/_____/___/   
+   ____                       ________    ____ 
+  / __ \_      _____  ____   / ____/ /   /  _/ 
+ / / / / | /| / / _ \/ __ \ / /   / /    / /   
+/ /_/ /| |/ |/ /  __/ / / // /___/ /____/ /    
+\___\_\|__/|__/\___/_/ /_/ \____/_____/___/
 
 v1.5.0 | Cross-Platform DevOps Tool | by using_unfase
 
@@ -214,7 +214,7 @@ This project is open source under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Made with ❤️ by 楠哥**
+**Made with ❤️ by using_unsafe**
 
 If this project helps you, please give it a ⭐ Star to show your support!
 
