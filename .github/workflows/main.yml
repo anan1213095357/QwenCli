@@ -39,29 +39,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang zlib1g-dev build-essential
 
-      # 1. 编译 AOT (去掉所有 UPX 干扰，直接输出)
+      # 1. 编译 AOT
+      # 增加 DebugType=none 和 DebugSymbols=false 彻底关闭符号生成
       - name: Build AOT
         run: >
           dotnet publish -c Release 
           -r ${{ matrix.rid }} 
           -p:PublishAot=true 
           -p:StripSymbols=true 
+          -p:DebugType=none 
+          -p:DebugSymbols=false 
           -o ./publish_dir
 
-      # 2. 自动打包 (采用 GitHub 内置的 tar，避开大小写和路径坑)
-      - name: Packaging
+      # 2. 深度清理并打包
+      - name: Cleanup and Packaging
         shell: bash
         run: |
-          # 进入输出目录，确保包内没有多余的层级
+          # 进入输出目录
           cd ./publish_dir
+          
+          # 物理删除所有可能的调试符号文件 (pdb, dbg, dsym)
+          echo "Cleaning up debug files..."
+          rm -rf *.pdb *.dbg *.dsym
           
           # 给 Unix 系列系统（Linux/macOS）的文件加执行权限
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
             chmod +x *
           fi
           
+          echo "Creating archive..."
           if [ "${{ matrix.ext }}" == "zip" ]; then
-            # Windows/Zip: 使用内置 tar 创建 zip
+            # Windows/Zip: 使用内置 tar 创建 zip，-a 会自动根据后缀名处理
             tar -a -c -f ../QwenCli_${{ matrix.rid }}.zip *
           else
             # Unix/Tar.gz: 创建压缩包并保留权限
@@ -77,3 +85,5 @@ jobs:
           name: "Latest Build"
           files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
           generate_release_notes: true
+          # 覆盖现有 Release 附件（如果存在）
+          overwrite: true
