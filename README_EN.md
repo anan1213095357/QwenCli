@@ -1,4 +1,4 @@
-# <div align="left" style="display: flex; align-items: center; line-height: 1.2;"> <img src="./141221163.png" width="32" height="32" style="margin-right: 15px;"> <span style="font-size: 32px; font-weight: bold;">QwenCLI - 智能运维自动化 Agent</span> </div>
+# <div align="left" style="display: flex; align-items: center; line-height: 1.2;"> <img src="./141221163.png" width="32" height="32" style="margin-right: 15px;"> <span style="font-size: 32px; font-weight: bold;">QwenCLI - Intelligent DevOps Automation Agent</span> </div>
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
