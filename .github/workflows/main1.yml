@@ -1,50 +1,50 @@
-name: Cross-Platform Build and Release
+name: Cross-Platform AOT Release
 
-# 触发条件：
-# 1. 当你推送以 "v" 开头的标签时（例如 v1.0.0）自动触发打包发布
-# 2. 允许你在 GitHub 网页端手动点击运行 (workflow_dispatch)
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
-# 赋予 Action 创建和修改 Release 的权限
 permissions:
   contents: write
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest # 使用 Ubuntu 环境交叉编译即可，速度快且免费时长多
-    
+    # 根据矩阵自动分配到不同的操作系统服务器
+    runs-on: ${{ matrix.os }}
     strategy:
-      # 矩阵配置：定义你要编译的所有目标平台及其对应的压缩后缀
+      fail-fast: false # 哪怕某个平台失败，其他平台继续打包
       matrix:
         include:
+          # --- Windows 系列 (使用 Windows 服务器) ---
           - rid: win-x64
-            os_name: Windows_x64
+            os: windows-latest
             ext: zip
-          - rid: win-x86
-            os_name: Windows_x86
+          - rid: win-x86        # 32 位 Windows
+            os: windows-latest
             ext: zip
           - rid: win-arm64
-            os_name: Windows_arm64
+            os: windows-latest
             ext: zip
+          
+          # --- Linux 系列 (使用 Ubuntu 服务器) ---
           - rid: linux-x64
-            os_name: Linux_x64
-            ext: tar.gz
-          - rid: linux-arm      # Linux 32位 ARM
-            os_name: Linux_arm32
+            os: ubuntu-latest
             ext: tar.gz
           - rid: linux-arm64
-            os_name: Linux_arm64
+            os: ubuntu-latest
             ext: tar.gz
+          
+          # --- macOS 系列 (苹果已彻底淘汰 32 位，只保留 64 和 ARM) ---
           - rid: osx-x64
-            os_name: macOS_x64
+            os: macos-13        # Intel 架构服务器
             ext: tar.gz
-          - rid: osx-arm64      # 苹果 M1/M2/M3 芯片
-            os_name: macOS_arm64
+          - rid: osx-arm64
+            os: macos-14        # 苹果 M 系芯片 (ARM64) 服务器
             ext: tar.gz
+
+          # 注：.NET AOT 目前对 Linux 32位 ARM (linux-arm) 支持极度受限且极易在运行时崩溃，为了保证发布质量，此处暂不构建 linux-arm AOT。
 
     steps:
     - name: Checkout Code
@@ -55,28 +55,41 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
-    - name: Publish .NET Project
-      # -c Release: 发布 Release 版本
-      # -r ${{ matrix.rid }}: 对应矩阵中的运行环境
-      # --self-contained true: 包含 .NET 运行时，用户电脑没装 .NET 10 也能直接跑
-      # -p:PublishSingleFile=true: 打包成单个独立执行文件
-      run: dotnet publish -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -o ./publish_output/${{ matrix.rid }}
+    # 安装 Linux x64 AOT 必需的 C++ 依赖
+    - name: Install Linux x64 AOT Dependencies
+      if: matrix.rid == 'linux-x64'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang zlib1g-dev
 
-    - name: Compress Release Files (Windows)
+    # 安装 Linux ARM64 交叉编译 AOT 必需的 C++ 工具链
+    - name: Install Linux ARM64 Cross-Compiler
+      if: matrix.rid == 'linux-arm64'
+      run: |
+        sudo dpkg --add-architecture arm64
+        sudo apt-get update
+        sudo apt-get install -y clang llvm gcc-aarch64-linux-gnu zlib1g-dev:arm64
+
+    - name: Publish .NET AOT Project
+      # 保持 AOT 开启，并针对特定平台构建
+      run: dotnet publish -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o ./publish_output/${{ matrix.rid }}
+
+    - name: Compress Release Files (Zip for Windows)
       if: matrix.ext == 'zip'
+      shell: bash
       run: |
         cd ./publish_output/${{ matrix.rid }}
-        zip -r ../../QwenCli_${{ matrix.os_name }}.${{ matrix.ext }} *
-      
-    - name: Compress Release Files (Linux/macOS)
+        tar -a -c -f ../../QwenCli_${{ matrix.rid }}.zip *
+      
+    - name: Compress Release Files (Tar.gz for Linux/macOS)
       if: matrix.ext == 'tar.gz'
+      shell: bash
       run: |
         cd ./publish_output/${{ matrix.rid }}
-        tar -czvf ../../QwenCli_${{ matrix.os_name }}.${{ matrix.ext }} *
+        tar -czvf ../../QwenCli_${{ matrix.rid }}.tar.gz *
 
     - name: Upload to GitHub Release
-      # 这是一个非常流行的第三方 Action，专门用来往 Release 挂载附件
       uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/') # 只有是通过 tag 触发时才上传
+      if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: QwenCli_${{ matrix.os_name }}.${{ matrix.ext }}
+        files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
