@@ -5,7 +5,7 @@
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![Version](https://img.shields.io/badge/Version-v1.4.0-orange?style=flat-square)
+![Version](https://img.shields.io/badge/Version-v1.5.0-orange?style=flat-square)
 
 **让 AI 成为你的运维助手 | 命令行里的智能自动化专家**
 
@@ -29,6 +29,7 @@
 | 📄 **文件读取** | 智能读取文本、代码、配置文件内容 |
 | ✍️ **文件写入** | 自动生成代码、配置文件并写入本地 |
 | 🖼️ **图片分析** | 支持本地截图、照片的识别与分析 |
+| 🔍 **内容搜索** | 在指定目录下搜索包含特定关键字（如函数名、变量名、类名等）的文件 |
 
 ---
 
@@ -120,6 +121,8 @@ export ANCLI_MODEL="qwen3.5-plus"
 > 执行 git status 查看当前仓库状态
 
 > 分析这张截图中的错误信息 (支持图片路径)
+
+> 搜索项目中所有包含 "UserService" 的 C# 文件
 ```
 
 ### 界面预览
@@ -131,7 +134,7 @@ export ANCLI_MODEL="qwen3.5-plus"
  / ___ |/ /|  /_____/ /___/ /____/ /   
 /_/  |_/_/ |_/      \____/_____/___/   
 
-v1.4.0 | 跨平台运维工具 | Build by using_unfase
+v1.5.0 | 跨平台运维工具 | by using_unfase
 
 终端运维 Agent 已接入系统 (支持全量文件操作)。
 提示：请输入部署或运维指令 (输入 'exit' 终止连接)
@@ -173,6 +176,8 @@ AnCli/
 - ✅ **工具调用** - 智能识别并调用合适的工具
 - ✅ **错误处理** - 完善的异常捕获与提示
 - ✅ **安全配置** - API Key 与代码分离，支持环境变量
+- ✅ **编码兼容** - 自动检测文件编码 (UTF-8/GBK)，避免乱码
+- ✅ **智能搜索** - 快速定位包含特定关键字的代码文件
 
 ---
 
@@ -182,6 +187,7 @@ AnCli/
 2. **命令执行权限**: 工具执行的命令具有与当前用户相同的权限，请谨慎操作
 3. **网络依赖**: 需要稳定的网络连接以调用 AI 服务
 4. **Token 限制**: 大文件读取会自动截断，防止 Token 溢出
+5. **文件修改**: 修改现有文件时，请确保提供精确的 old_content 进行替换
 
 ---
 
