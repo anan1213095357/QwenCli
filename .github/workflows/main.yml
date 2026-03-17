@@ -79,7 +79,7 @@ jobs:
       run: |
         cd ./publish_output/${{ matrix.rid }}
         tar -a -c -f ../../QwenCli_${{ matrix.rid }}.zip *
-      
+      
     - name: Tar Release
       if: matrix.ext == 'tar.gz'
       shell: bash
