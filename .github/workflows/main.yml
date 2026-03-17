@@ -45,7 +45,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup .NET 10
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '10.0.x'
@@ -70,24 +70,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y clang llvm gcc-aarch64-linux-gnu zlib1g-dev:arm64
 
-    - name: Publish .NET AOT Project
+    - name: Publish AOT
       run: dotnet publish -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o ./publish_output/${{ matrix.rid }}
 
-    - name: Compress Release Files (Zip for Windows)
+    - name: Zip Release
       if: matrix.ext == 'zip'
       shell: bash
       run: |
         cd ./publish_output/${{ matrix.rid }}
         tar -a -c -f ../../QwenCli_${{ matrix.rid }}.zip *
       
-    - name: Compress Release Files (Tar.gz for Linux/macOS)
+    - name: Tar Release
       if: matrix.ext == 'tar.gz'
       shell: bash
       run: |
         cd ./publish_output/${{ matrix.rid }}
         tar -czvf ../../QwenCli_${{ matrix.rid }}.tar.gz *
 
-    - name: Upload to GitHub Release
+    - name: Upload Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
