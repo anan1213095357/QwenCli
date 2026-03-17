@@ -85,5 +85,7 @@ jobs:
           name: "Latest Build"
           files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
           generate_release_notes: true
-          # 覆盖现有 Release 附件（如果存在）
-          overwrite: true
+          # 关键配置：
+          make_latest: true     # 强制设为最新的 Release
+          prerelease: false     # 确保不是预发布版本（预发布有时会被折叠）
+          append_body: true     # 如果 Release 已存在，追加更新日志而不是报错
