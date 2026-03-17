@@ -3,6 +3,7 @@ name: Qwen AOT Build
 on:
   workflow_dispatch:
   push:
+    branches: ["master"]
     tags: ["v*"]
 
 permissions:
@@ -15,14 +16,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { rid: win-x64, os: windows-latest, ext: zip }
-          - { rid: win-x86, os: windows-latest, ext: zip }
-          - { rid: win-arm64, os: windows-latest, ext: zip }
-          - { rid: linux-x64, os: ubuntu-latest, ext: tar.gz }
-          - { rid: linux-arm, os: ubuntu-latest, ext: tar.gz }
-          - { rid: linux-arm64, os: ubuntu-latest, ext: tar.gz }
-          - { rid: osx-x64, os: macos-13, ext: tar.gz }
-          - { rid: osx-arm64, os: macos-14, ext: tar.gz }
+          - { rid: win-x64, os: windows-latest, ext: zip, exe: QwenCli.exe }
+          - { rid: win-x86, os: windows-latest, ext: zip, exe: QwenCli.exe }
+          - { rid: win-arm64, os: windows-latest, ext: zip, exe: QwenCli.exe }
+          - { rid: linux-x64, os: ubuntu-latest, ext: tar.gz, exe: QwenCli }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, ext: tar.gz, exe: QwenCli }
+          - { rid: osx-x64, os: macos-latest, ext: tar.gz, exe: QwenCli }
+          - { rid: osx-arm64, os: macos-latest, ext: tar.gz, exe: QwenCli }
 
     steps:
       - uses: actions/checkout@v4
@@ -31,20 +31,29 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install Linux x64 Env
-        if: matrix.rid == 'linux-x64'
+      # Linux 环境准备
+      - name: Install Linux Dependencies
+        if: startsWith(matrix.rid, 'linux')
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
-      - name: Install Linux arm32 Env
-        if: matrix.rid == 'linux-arm'
-        run: sudo dpkg --add-architecture armhf && sudo apt-get update && sudo apt-get install -y clang llvm gcc-arm-linux-gnueabihf zlib1g-dev:armhf
-
-      - name: Install Linux arm64 Env
-        if: matrix.rid == 'linux-arm64'
-        run: sudo dpkg --add-architecture arm64 && sudo apt-get update && sudo apt-get install -y clang llvm gcc-aarch64-linux-gnu zlib1g-dev:arm64
-
+      # 1. 编译 AOT (增加 StripSymbols=true 进一步减小体积)
       - name: Build AOT
-        run: dotnet publish -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o ./out/${{ matrix.rid }}
+        run: >
+          dotnet publish -c Release 
+          -r ${{ matrix.rid }} 
+          -p:PublishAot=true 
+          -p:StripSymbols=true 
+          -o ./out/${{ matrix.rid }}
+
+      # 2. 调用 UPX 进行压缩
+      # 注意：macOS arm64 (Apple Silicon) 目前对 UPX 支持不佳，可能会导致运行崩溃，这里做了判断
+      - name: Compress with UPX
+        uses: svenstaro/upx-action@v2
+        if: matrix.rid != 'osx-arm64' 
+        with:
+          files: ./out/${{ matrix.rid }}/${{ matrix.exe }}
+          args: -9
+          strip: true
 
       - name: Zip for Windows
         if: matrix.ext == 'zip'
@@ -58,6 +67,7 @@ jobs:
 
       - name: Upload
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: latest
+          name: "最新版"
           files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
