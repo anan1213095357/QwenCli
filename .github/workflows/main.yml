@@ -15,13 +15,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { rid: win-x64, os: windows-latest, ext: zip, exe: QwenCli.exe }
-          - { rid: win-x86, os: windows-latest, ext: zip, exe: QwenCli.exe }
-          - { rid: win-arm64, os: windows-latest, ext: zip, exe: QwenCli.exe }
-          - { rid: linux-x64, os: ubuntu-latest, ext: tar.gz, exe: QwenCli }
-          - { rid: linux-arm64, os: ubuntu-24.04-arm, ext: tar.gz, exe: QwenCli }
-          - { rid: osx-x64, os: macos-latest, ext: tar.gz, exe: QwenCli }
-          - { rid: osx-arm64, os: macos-latest, ext: tar.gz, exe: QwenCli }
+          - { rid: win-x64, os: windows-latest, ext: zip, exe: QwenCLI.exe }
+          - { rid: win-arm64, os: windows-latest, ext: zip, exe: QwenCLI.exe }
+          - { rid: linux-x64, os: ubuntu-latest, ext: tar.gz, exe: QwenCLI }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, ext: tar.gz, exe: QwenCLI }
+          - { rid: osx-x64, os: macos-latest, ext: tar.gz, exe: QwenCLI }
+          - { rid: osx-arm64, os: macos-latest, ext: tar.gz, exe: QwenCLI }
 
     steps:
       - uses: actions/checkout@v4
@@ -31,59 +30,55 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Linux 环境必须的 AOT 依赖
       - name: Install Linux Dependencies
         if: startsWith(matrix.rid, 'linux')
         run: |
           sudo apt-get update
           sudo apt-get install -y clang zlib1g-dev build-essential
 
-      # 1. 编译 AOT
-      # 增加 DebugType=none 和 DebugSymbols=false 彻底关闭符号生成
+      # 1. 编译 AOT (参数已在 csproj 中定义，此处简化)
       - name: Build AOT
         run: >
           dotnet publish -c Release 
           -r ${{ matrix.rid }} 
-          -p:PublishAot=true 
-          -p:StripSymbols=true 
-          -p:DebugType=none 
-          -p:DebugSymbols=false 
           -o ./publish_dir
 
-      # 2. 深度清理并打包
+      # 2. 使用 UPX 进行极致压缩 (针对 Windows 和 Linux)
+      # 注：macOS 对 UPX 签名较敏感，可选开启
+      - name: UPX Compression
+        if: ${{ !startsWith(matrix.rid, 'osx') }}
+        uses: svenstaro/upx-action@v2
+        with:
+          files: ./publish_dir/${{ matrix.exe }}
+          args: --best --lzma
+          strip: true
+
+      # 3. 清理并打包
       - name: Cleanup and Packaging
         shell: bash
         run: |
-          # 进入输出目录
           cd ./publish_dir
-          
-          # 物理删除所有可能的调试符号文件 (pdb, dbg, dsym)
-          echo "Cleaning up debug files..."
+          # 删除调试符号
           rm -rf *.pdb *.dbg *.dsym
           
-          # 给 Unix 系列系统（Linux/macOS）的文件加执行权限
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
-            chmod +x *
+            chmod +x ${{ matrix.exe }}
           fi
           
-          echo "Creating archive..."
           if [ "${{ matrix.ext }}" == "zip" ]; then
-            # Windows/Zip: 使用内置 tar 创建 zip，-a 会自动根据后缀名处理
             tar -a -c -f ../QwenCli_${{ matrix.rid }}.zip *
           else
-            # Unix/Tar.gz: 创建压缩包并保留权限
             tar -czvf ../QwenCli_${{ matrix.rid }}.tar.gz *
           fi
 
-      # 3. 发布到 Release
-      - name: Upload
+      # 4. 发布
+      - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "Latest Build"
           files: QwenCli_${{ matrix.rid }}.${{ matrix.ext }}
           generate_release_notes: true
-          # 关键配置：
-          make_latest: true     # 强制设为最新的 Release
-          prerelease: false     # 确保不是预发布版本（预发布有时会被折叠）
-          append_body: true     # 如果 Release 已存在，追加更新日志而不是报错
+          make_latest: true
+          prerelease: false
+          append_body: true
