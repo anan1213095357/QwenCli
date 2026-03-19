@@ -43,7 +43,6 @@ if (!File.Exists("appsettings.json"))
     Console.WriteLine("检测到首次运行，已自动生成默认的 appsettings.json 文件。");
     Console.ResetColor();
 }
-
 // 2. 初始化 Tools
 var tools = JsonNode.Parse("""
 [
@@ -52,26 +51,11 @@ var tools = JsonNode.Parse("""
     { "type": "function", "function": { "name": "write_file", "description": "写文件或局部修改文件。局部修改必须提供 old_content。", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" }, "content": { "type": "string" }, "old_content": { "type": "string" } }, "required": ["file_path", "content"] } } },
     { "type": "function", "function": { "name": "read_local_image", "description": "看图", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" } }, "required": ["file_path"] } } },
     { "type": "function", "function": { "name": "search_content", "description": "全局搜索关键字。", "parameters": { "type": "object", "properties": { "keyword": { "type": "string" }, "directory": { "type": "string" }, "file_pattern": { "type": "string" } }, "required": ["keyword"] } } },
-    { 
-        "type": "function", 
-        "function": { 
-            "name": "update_summary", 
-            "description": "追加阶段任务摘要（作为索引目录）。务必总结本阶段完成了什么，并附上对应的【日志文件路径】。当你未来丢失上下文时，将通过读取此摘要中的路径来找回执行细节。", 
-            "parameters": { 
-                "type": "object", 
-                "properties": { 
-                    "step_summary": { "type": "string", "description": "本阶段的精简总结和下一步计划" }, 
-                    "log_file_path": { "type": "string", "description": "本阶段对应的详细日志文件路径（如果有的话）" } 
-                }, 
-                "required": ["step_summary"] 
-            } 
-        } 
-    }
+    { "type": "function", "function": { "name": "update_summary", "description": "追加阶段任务摘要（作为索引目录）。务必总结本阶段完成了什么，并附上对应的【日志文件路径】。当你未来丢失上下文时，将通过读取此摘要中的路径来找回执行细节。", "parameters": { "type": "object", "properties": { "step_summary": { "type": "string", "description": "本阶段的精简总结和下一步计划" }, "log_file_path": { "type": "string", "description": "本阶段对应的详细日志文件路径（如果有的话）" } }, "required": ["step_summary"] } } },
     { "type": "function", "function": { "name": "require_full_context", "description": "请求完整历史记录。如果你发现当前的摘要信息不足以支撑推理，调用此工具。", "parameters": { "type": "object", "properties": {} } } },
     { "type": "function", "function": { "name": "finish_task", "description": "当用户的最终目标已彻底完成时调用此工具。这会预约清空当前的上下文记忆和任务摘要，确保下一次接收新任务时处于干净的状态。", "parameters": { "type": "object", "properties": {} } } }
 ]
 """);
-
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
