@@ -5,6 +5,10 @@ using System.Net.Http.Headers;        // 提供处理 HTTP 请求头的功能（
 using System.Runtime.InteropServices; // 提供获取系统信息的功能（判断是Windows还是Linux/Mac）
 using System.Text;                    // 提供文本编码功能（处理UTF-8、GBK等）
 using System.Text.Json.Nodes;         // 提供轻量级的 JSON 解析和构建功能
+using System.Collections.Generic;     // 【新增】提供 List 等集合功能
+using System.Linq;                    // 【新增】提供 LINQ 查询功能
+using System.Text.RegularExpressions; // 【新增】提供正则表达式功能
+
 // ==========================================
 // 1. 配置与初始化阶段
 // ==========================================
@@ -323,13 +327,23 @@ string RunCmd(string? cmd)
     string err = errorBuilder.ToString();
     string outStr = outputBuilder.ToString();
 
+    // ========= 【核心改动】：在返回前压缩日志，防止 Token 爆炸 =========
+    var errLines = err.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+    var outLines = outStr.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+    var compressedErr = UniversalLogCompressor.CompressLogs(errLines);
+    var compressedOut = UniversalLogCompressor.CompressLogs(outLines);
+
+    string finalErr = string.Join("\n", compressedErr).Trim();
+    string finalOut = string.Join("\n", compressedOut).Trim();
+
     // 如果有错误信息，把错误信息和正常信息一起返回给大模型看
-    if (!string.IsNullOrWhiteSpace(err))
+    if (!string.IsNullOrWhiteSpace(finalErr))
     {
-        return $"[标准错误/进度信息]\n{err}\n[标准输出]\n{outStr}";
+        return $"[标准错误/进度信息]\n{finalErr}\n[标准输出]\n{finalOut}";
     }
 
-    return outStr;
+    return finalOut;
 }
 
 // 工具 2：读取文件
@@ -500,5 +514,102 @@ string SearchContent(string? dir, string? keyword, string? pattern)
     catch (Exception ex)
     {
         return $"[搜索异常] {ex.Message}";
+    }
+}
+
+// ==========================================
+// 4. 新增：全能日志压缩算法类
+// ==========================================
+public class UniversalLogCompressor
+{
+    // 相似度阈值：0.0 到 1.0。0.7 意味着只要有 70% 的字符相同，就认为是重复进度
+    private const double SimilarityThreshold = 0.7;
+
+    public static List<string> CompressLogs(IEnumerable<string> rawLogs)
+    {
+        var compressedLogs = new List<string>();
+        var currentBlock = new List<string>();
+
+        foreach (var rawLine in rawLogs)
+        {
+            if (string.IsNullOrWhiteSpace(rawLine)) continue;
+
+            // 预处理：清洗掉控制台颜色代码（ANSI Escape Codes），这对计算相似度和 LLM 都没有意义
+            string line = Regex.Replace(rawLine, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "");
+
+            if (currentBlock.Count == 0)
+            {
+                currentBlock.Add(line);
+            }
+            else
+            {
+                // 与当前块的【最后一行】进行比较，允许进度条发生渐变
+                double similarity = CalculateSimilarityFast(currentBlock.Last(), line);
+
+                if (similarity >= SimilarityThreshold)
+                {
+                    currentBlock.Add(line);
+                }
+                else
+                {
+                    FlushBlock(compressedLogs, currentBlock);
+                    currentBlock.Clear();
+                    currentBlock.Add(line);
+                }
+            }
+        }
+        
+        FlushBlock(compressedLogs, currentBlock);
+        return compressedLogs;
+    }
+
+    private static void FlushBlock(List<string> result, List<string> block)
+    {
+        if (block.Count == 0) return;
+
+        if (block.Count <= 2)
+        {
+            result.AddRange(block);
+        }
+        else
+        {
+            // 核心折叠逻辑：保留首尾，说明过程
+            result.Add(block.First());
+            result.Add($"    ... [盘古 AI: 已折叠 {block.Count - 2} 行高相似度进度/重复输出] ...");
+            result.Add(block.Last());
+        }
+    }
+
+    // 高度优化的快速字符串相似度计算 (0.0 = 完全不同, 1.0 = 完全相同)
+    private static double CalculateSimilarityFast(string s, string t)
+    {
+        if (s == t) return 1.0;
+        if (s.Length == 0 || t.Length == 0) return 0.0;
+
+        int maxLength = Math.Max(s.Length, t.Length);
+        int minLength = Math.Min(s.Length, t.Length);
+
+        // 剪枝：如果两行长度差异悬殊（比如相差 50% 以上），直接认为不相似，节省 CPU
+        if ((double)minLength / maxLength < 0.5) return 0.0;
+
+        // 使用两个一维数组替代二维数组，极大降低 GC 压力
+        int[] v0 = new int[t.Length + 1];
+        int[] v1 = new int[t.Length + 1];
+
+        for (int i = 0; i < v0.Length; i++) v0[i] = i;
+
+        for (int i = 0; i < s.Length; i++)
+        {
+            v1[0] = i + 1;
+            for (int j = 0; j < t.Length; j++)
+            {
+                int cost = (s[i] == t[j]) ? 0 : 1;
+                v1[j + 1] = Math.Min(Math.Min(v1[j] + 1, v0[j + 1] + 1), v0[j] + cost);
+            }
+            for (int j = 0; j < v0.Length; j++) v0[j] = v1[j];
+        }
+
+        int distance = v1[t.Length];
+        return 1.0 - ((double)distance / maxLength);
     }
 }
