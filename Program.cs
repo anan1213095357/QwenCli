@@ -69,8 +69,26 @@ Console.InputEncoding = Encoding.UTF8;
 var apiKey = GetConfig("ApiKey");
 if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your")) return;
 
+
+Console.Clear();
 Console.ForegroundColor = ConsoleColor.Cyan;
-Console.Write("请输入本机 Sudo/Admin 密码(用于全自动提权，无密码或不提供请直接回车): ");
+Console.WriteLine(@"
+    ____                        ________    ____ 
+   / __ \_      _____  ____    / ____/ /   /  _/ 
+  / / / / | /| / / _ \/ __ \  / /   / /    / /   
+ / /_/ /| |/ |/ /  __/ / / / / /___/ /____/ /    
+ \____/ |__/|__/\___/_/ /_/  \____/_____/___/    
+");
+Console.ForegroundColor = ConsoleColor.DarkGray;
+Console.WriteLine("v1.5.0 | 千问跨平台运维工具 by 奶茶叔叔");
+Console.WriteLine("开源地址： https://github.com/anan1213095357/QwenCli \n");
+// 打印当前连接的模型名称
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine($"终端运维 Agent 已接入系统。当前模型：[ {GetConfig("Model", "qwen3.5-plus")} ]");
+Console.WriteLine("v2.0.0 | 千问跨平台运维工具 (动态摘要架构) by 奶茶叔叔\n");
+Console.ResetColor();
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.Write("请输入本机 Sudo/Admin 密码(用于全自动，无密码或不提供请直接回车): ");
 Console.ResetColor();
 string sudoPassword = ReadPasswordHidden();
 
