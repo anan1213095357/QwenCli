@@ -33,10 +33,8 @@ if (!File.Exists("appsettings.json"))
         ["Model"] = "qwen3.5-plus",
         ["Endpoint"] = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
     };
-
     var options = new JsonSerializerOptions { WriteIndented = true };
     File.WriteAllText("appsettings.json", defaultConfig.ToJsonString(options), Encoding.UTF8);
-
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("检测到缺少配置文件，已自动在当前目录生成默认的 appsettings.json 文件。");
     Console.WriteLine("请替换 'your_api_key_here' 为真实的 ApiKey 后重新运行。");
@@ -140,27 +138,20 @@ while (true)
 {
     Console.Write("\n> ");
     var input = Console.ReadLine();
-
     if (string.IsNullOrEmpty(input)) continue;
     if (input.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
-
     JsonArray currentRoundMessages = new JsonArray();
     bool useFullContext = false; 
     bool requireReset = false; // 标记本轮对话结束后是否清空记忆
-
     var userMsg = new JsonObject { ["role"] = "user", ["content"] = input };
     currentRoundMessages.Add(userMsg.DeepClone());
     fullHistory.Add(userMsg.DeepClone());
     SaveData(fullHistory, checkpointPath);
-
     bool isDone = false;
-
     while (!isDone)
     {
         using var cts = new CancellationTokenSource();
         var animTask = Think(cts.Token);
-
-        // 构建带有最新摘要的系统提示词
         string systemPromptText = $@"你是一个高级运维自动化 Agent。当前系统：{RuntimeInformation.OSDescription}。
 {sudoInstruction}
 【记忆管理规则】：你目前处于【摘要驱动模式】。为节省Token，你默认只能看到下方的【当前任务摘要】和用户的【最新指令】。
