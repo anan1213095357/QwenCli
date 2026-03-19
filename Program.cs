@@ -177,10 +177,10 @@ while (true)
 {sudoInstruction}
 【记忆管理规则】：你目前处于【摘要驱动模式】。为节省Token，你默认只能看到下方的【当前任务摘要】和用户的【最新指令】。
 1. 如果你发现依据摘要不足以写出代码或执行命令，请立即调用 `require_full_context` 工具获取完整记录。
-2. 每完成一个阶段性任务，务必调用 `update_summary` 覆盖更新当前的进展！
+2. 每完成一个阶段性任务，务必调用 `update_summary` 将当前步骤追加到进展日志中！
 🚨 3. 当判定用户交代的所有目标均已彻底完成时，必须且只能调用 `finish_task` 工具来清理环境，然后向用户做最后的结果汇报。🚨
 
-【当前任务摘要】：
+【当前任务进展日志】：
 {currentSummary}";
 
         var payloadMessages = new JsonArray();
@@ -240,11 +240,14 @@ while (true)
                 }
                 else if (fnName == "update_summary")
                 {
-                    currentSummary = tempArgs?["new_summary"]?.ToString() ?? currentSummary;
+                    string newStep = tempArgs?["step_progress"]?.ToString() ?? "";
+                    if (currentSummary == "暂无任务进展") currentSummary = "";
+                    string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                    currentSummary += $"\n[{timestamp}] - {newStep}";
                     File.WriteAllText(summaryPath, currentSummary, Encoding.UTF8);
-                    result = "[系统提示] 任务摘要已成功更新。";
+                    result = "[系统提示] 最新进度已成功追加到进展日志中。";
                     Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[内部状态] 摘要已更新:\n{currentSummary}");
+                    Console.WriteLine($"[内部状态] 进度已追加: [{timestamp}] {newStep}");
                     Console.ResetColor();
                 }
                 else if (fnName == "require_full_context")
