@@ -65,7 +65,10 @@ var apiKey = GetConfig("ApiKey");
 if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your"))
 {
     Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write("\n检测到未配置 ApiKey。请输入真实的 ApiKey (直接回车退出程序): ");
+    Console.WriteLine("\n检测到未配置 ApiKey。请输入真实的 ApiKey (直接回车退出程序)");
+    Console.WriteLine("获取 ApiKey 地址：https://bailian.console.aliyun.com/cn-beijing?tab=model#/api-key");
+    Console.WriteLine("提示：在终端中按住 Ctrl + 鼠标左键点击链接即可快速打开");
+    Console.Write("ApiKey: ");
     Console.ResetColor();
     apiKey = Console.ReadLine()?.Trim();
 
