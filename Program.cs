@@ -43,7 +43,7 @@ if (!File.Exists("appsettings.json"))
     Console.WriteLine("检测到首次运行，已自动生成默认的 appsettings.json 文件。");
     Console.ResetColor();
 }
-// 2. 初始化 Tools
+// 2. 初始化 Tools (更新了 update_summary 的描述)
 var tools = JsonNode.Parse("""
 [
     { "type": "function", "function": { "name": "execute_command", "description": "执行终端命令", "parameters": { "type": "object", "properties": { "command": { "type": "string" } }, "required": ["command"] } } },
@@ -51,7 +51,7 @@ var tools = JsonNode.Parse("""
     { "type": "function", "function": { "name": "write_file", "description": "写文件或局部修改文件。局部修改必须提供 old_content。", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" }, "content": { "type": "string" }, "old_content": { "type": "string" } }, "required": ["file_path", "content"] } } },
     { "type": "function", "function": { "name": "read_local_image", "description": "看图", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" } }, "required": ["file_path"] } } },
     { "type": "function", "function": { "name": "search_content", "description": "全局搜索关键字。", "parameters": { "type": "object", "properties": { "keyword": { "type": "string" }, "directory": { "type": "string" }, "file_pattern": { "type": "string" } }, "required": ["keyword"] } } },
-    { "type": "function", "function": { "name": "update_summary", "description": "追加阶段任务摘要（作为索引目录）。务必总结本阶段完成了什么，并附上对应的【日志文件路径】。当你未来丢失上下文时，将通过读取此摘要中的路径来找回执行细节。", "parameters": { "type": "object", "properties": { "step_summary": { "type": "string", "description": "本阶段的精简总结和下一步计划" }, "log_file_path": { "type": "string", "description": "本阶段对应的详细日志文件路径（如果有的话）" } }, "required": ["step_summary"] } } },
+    { "type": "function", "function": { "name": "update_summary", "description": "追加阶段任务摘要（作为索引目录）。务必总结本阶段完成了什么，并附上对应的【日志文件路径】。系统会自动将未认领的日志与此摘要强关联。", "parameters": { "type": "object", "properties": { "step_summary": { "type": "string", "description": "本阶段的精简总结和下一步计划" }, "log_file_path": { "type": "string", "description": "本阶段对应的详细日志文件路径（如果有的话）" } }, "required": ["step_summary"] } } },
     { "type": "function", "function": { "name": "require_full_context", "description": "请求完整历史记录。如果你发现当前的摘要信息不足以支撑推理，调用此工具。", "parameters": { "type": "object", "properties": {} } } },
     { "type": "function", "function": { "name": "finish_task", "description": "当用户的最终目标已彻底完成时调用此工具。这会预约清空当前的上下文记忆和任务摘要，确保下一次接收新任务时处于干净的状态。", "parameters": { "type": "object", "properties": {} } } }
 ]
@@ -60,7 +60,7 @@ Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
 
-// 3. 读取并检查 ApiKey，如果无效则要求用户在控制台输入并自动保存
+// 3. 读取并检查 ApiKey
 var apiKey = GetConfig("ApiKey");
 if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your"))
 {
@@ -69,7 +69,7 @@ if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your"))
     Console.ResetColor();
     apiKey = Console.ReadLine()?.Trim();
 
-    if (string.IsNullOrEmpty(apiKey)) return; // 用户直接回车则退出
+    if (string.IsNullOrEmpty(apiKey)) return; 
 
     try
     {
@@ -102,7 +102,7 @@ Console.WriteLine(@"
 ");
 Console.ForegroundColor = ConsoleColor.Green;
 Console.WriteLine($"终端运维 Agent 已接入系统。当前模型：[ {GetConfig("Model", "qwen3.5-plus")} ]");
-Console.WriteLine("v2.0.0 | 千问跨平台运维工具 (动态摘要架构) by 奶茶叔叔\n");
+Console.WriteLine("v2.2.0 | 千问跨平台运维工具 (动态摘要架构) by 奶茶叔叔\n");
 Console.ResetColor();
 
 Console.ForegroundColor = ConsoleColor.Cyan;
@@ -128,6 +128,9 @@ string checkpointPath = "full_history.json";
 string summaryPath = "session_summary.txt";
 JsonArray fullHistory = new JsonArray();
 string currentSummary = "暂无任务进展";
+
+// 【新增】未认领日志队列，用于实现日志与摘要的强绑定
+List<string> unclaimedLogs = new List<string>();
 
 if (File.Exists(summaryPath)) currentSummary = File.ReadAllText(summaryPath, Encoding.UTF8);
 
@@ -181,11 +184,10 @@ while (true)
     if (string.IsNullOrEmpty(input)) continue;
     if (input.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
     
-    JsonArray currentRoundMessages = new JsonArray();
     bool useFullContext = false; 
-    bool requireReset = false; // 标记本轮对话结束后是否清空记忆
+    bool requireReset = false; 
     var userMsg = new JsonObject { ["role"] = "user", ["content"] = input };
-    currentRoundMessages.Add(userMsg.DeepClone());
+    
     fullHistory.Add(userMsg.DeepClone());
     SaveData(fullHistory, checkpointPath);
     
@@ -197,9 +199,9 @@ while (true)
         string systemPromptText = $@"你是一个高级运维自动化 Agent。当前系统：{RuntimeInformation.OSDescription}。
         {sudoInstruction}
         【记忆管理架构：摘要即索引】：
-        1. 为节省Token，你的短时记忆有限。你主要依赖下方的【当前任务摘要】作为你的全局状态机和历史目录。
-        2. 当你调用 execute_command 产生输出时，必须调用 update_summary，将操作结果总结成一句话，并将那个【日志文件路径】存入摘要中。
-        3. 如果在后续推理中，你发现摘要里的信息不足以让你继续（比如你需要查看前几步的具体报错代码），请优先使用 read_file 工具去读取摘要里记录的那个具体日志文件！
+        1. 为节省Token，你的短时记忆只会保留最近的几次对话记录。对于早期的历史，你必须依赖下方的【当前任务摘要】作为你的全局状态机和历史目录。
+        2. 当你调用 execute_command 产生输出时，系统会生成日志。你必须调用 update_summary 将操作结果总结成一句话。系统会自动将期间产生的所有未认领日志与该摘要强绑定。
+        3. 如果在后续推理中，你发现摘要里的信息不足以让你继续（比如你需要查看前几步的具体报错代码），请优先使用 read_file 工具去读取摘要里记录的具体日志文件！
         4. 只有当摘要也丢失时，才允许调用 require_full_context。
         5. 当任务彻底完成时调用 finish_task 清理环境。
         
@@ -209,8 +211,33 @@ while (true)
         var payloadMessages = new JsonArray();
         payloadMessages.Add(new JsonObject { ["role"] = "system", ["content"] = systemPromptText });
         
-        if (useFullContext) foreach (var m in fullHistory) payloadMessages.Add(m.DeepClone());
-        else foreach (var m in currentRoundMessages) payloadMessages.Add(m.DeepClone());
+        // 核心修改：动态截取“最后三轮对话”（即最后3个user消息及其后续所有内容），避免打断 Tool Calls
+        IEnumerable<JsonNode?> recentMessages;
+        if (useFullContext)
+        {
+            recentMessages = fullHistory;
+        }
+        else
+        {
+            int seenUser = 0;
+            int startIndex = 0;
+            for (int i = fullHistory.Count - 1; i >= 0; i--)
+            {
+                if (fullHistory[i]?["role"]?.ToString() == "user")
+                {
+                    seenUser++;
+                    // 保留最后3次用户的提问及其所有追问/工具执行记录
+                    if (seenUser > 3) 
+                    {
+                        startIndex = i + 1;
+                        break;
+                    }
+                }
+            }
+            recentMessages = fullHistory.Skip(startIndex);
+        }
+
+        foreach (var m in recentMessages) payloadMessages.Add(m!.DeepClone());
         
         var payload = new JsonObject
         {
@@ -231,7 +258,6 @@ while (true)
         cts.Cancel(); await animTask;
         if (msg == null) break;
         
-        currentRoundMessages.Add(msg.DeepClone());
         fullHistory.Add(msg.DeepClone());
         SaveData(fullHistory, checkpointPath);
         
@@ -260,16 +286,31 @@ while (true)
                 {
                     string newStep = tempArgs?["step_summary"]?.ToString() ?? "";
                     string logRef = tempArgs?["log_file_path"]?.ToString() ?? "";
+                    
+                    // 【核心逻辑】自动认领这段时间产生的所有游离日志，实现强绑定
+                    if (unclaimedLogs.Count > 0)
+                    {
+                        var missingLogs = unclaimedLogs.Where(l => !logRef.Contains(l)).ToList();
+                        if (missingLogs.Count > 0)
+                        {
+                            string autoClaimedStr = string.Join(" | ", missingLogs);
+                            logRef = string.IsNullOrEmpty(logRef) ? autoClaimedStr : $"{logRef} | 自动绑定: {autoClaimedStr}";
+                        }
+                        unclaimedLogs.Clear();
+                    }
+
                     if (currentSummary == "暂无任务进展") currentSummary = "";
                     string timestamp = DateTime.Now.ToString("MM-dd HH:mm:ss");
                     string indexEntry = $"\n[{timestamp}] {newStep}";
                     if (!string.IsNullOrEmpty(logRef))
                        indexEntry += $"\n  └─ 关联日志: {logRef}";
+                    
                     currentSummary += indexEntry;
                     File.WriteAllText(summaryPath, currentSummary, Encoding.UTF8);
-                    result = "[系统提示] 摘要索引已更新。未来你随时可以读取摘要中的 log 路径来获取细节。";
+                    
+                    result = "[系统提示] 摘要索引已更新。产生的日志已全部归档绑定。未来你可以读取摘要中的 log 路径来获取细节。";
                     Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[内部状态] 索引已建立: [{timestamp}] {newStep} {(string.IsNullOrEmpty(logRef) ? "" : $"(日志: {logRef})")}");
+                    Console.WriteLine($"[内部状态] 索引已建立: [{timestamp}] {newStep}\n{(string.IsNullOrEmpty(logRef) ? "" : $"  └─ 日志绑定: {logRef}")}");
                     Console.ResetColor();
                 }
                 else if (fnName == "require_full_context")
@@ -280,7 +321,7 @@ while (true)
                     Console.WriteLine($"[内部状态] 主动读取了历史。");
                     Console.ResetColor();
                 }
-                else // 处理常规工具
+                else 
                 {
                     result = fnName switch
                     {
@@ -300,7 +341,6 @@ while (true)
                     ["content"] = result,
                     ["tool_call_id"] = call["id"]?.ToString()
                 };
-                currentRoundMessages.Add(toolResultMsg.DeepClone());
                 fullHistory.Add(toolResultMsg.DeepClone());
                 SaveData(fullHistory, checkpointPath); 
             }
@@ -314,9 +354,12 @@ while (true)
         }
     }
     
+    // (移除了原有的 shortTermMemory 截断代码)
+    
     if (requireReset)
     {
         fullHistory.Clear();
+        unclaimedLogs.Clear(); // 任务结束清理残留的队列
         if (File.Exists(checkpointPath)) File.Delete(checkpointPath); 
         if (File.Exists(summaryPath)) File.Delete(summaryPath);       
         currentSummary = "暂无任务进展";
@@ -351,23 +394,39 @@ string ReadPasswordHidden()
 string RunCmd(string? cmd)
 {
     if (string.IsNullOrEmpty(cmd)) return "[执行失败] 命令为空";
-    bool isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    var isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    
+    var askPassPath = "";
     
     if (!string.IsNullOrEmpty(sudoPassword))
     {
-        if (!isWin && cmd.Contains("sudo ") && !cmd.Contains("-S"))
+        switch (isWin)
         {
-            string safePwd = sudoPassword.Replace("'", "'\\''");
-            cmd = cmd.Replace("sudo ", $"echo '{safePwd}' | sudo -S ");
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("[底层拦截] 检测到 Mac/Linux 原生 sudo，已自动注入免交互提权管道...");
-            Console.ResetColor();
-        }
-        else if (isWin && (cmd.Contains("sudo ") || cmd.Contains("runas ")))
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("[底层拦截] 警告：Windows 环境下检测到提权命令。由于 UAC 限制，可能需要手动授权或导致执行挂起。");
-            Console.ResetColor();
+            case false:
+            {
+                askPassPath = Path.Combine(Path.GetTempPath(), $"agent_askpass_{Guid.NewGuid():N}.sh");
+                var safePwd = sudoPassword.Replace("'", "'\\''");
+                File.WriteAllText(askPassPath, $"#!/bin/bash\necho '{safePwd}'\n");
+            
+                using (var chmodProc = Process.Start(new ProcessStartInfo("chmod", $"+x {askPassPath}") { CreateNoWindow = true }))
+                {
+                    chmodProc?.WaitForExit();
+                }
+
+                if (cmd.Contains("sudo ") && !cmd.Contains("-S"))
+                {
+                    cmd = cmd.Replace("sudo ", $"echo '{safePwd}' | sudo -S ");
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    Console.WriteLine("[底层拦截] 检测到 Mac/Linux 原生 sudo，已自动注入免交互提权管道...");
+                    Console.ResetColor();
+                }
+                break;
+            }
+            case true when (cmd.Contains("sudo ") || cmd.Contains("runas ")):
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[底层拦截] 警告：Windows 环境下检测到提权命令。由于 UAC 限制，可能需要手动授权或导致执行挂起。");
+                Console.ResetColor();
+                break;
         }
     }
     
@@ -375,7 +434,7 @@ string RunCmd(string? cmd)
     Console.WriteLine($"[执行中] {cmd}");
     Console.ResetColor();
     
-    Encoding consoleEncoding = isWin ? Encoding.GetEncoding("GBK") : new UTF8Encoding(false);
+    var consoleEncoding = isWin ? Encoding.GetEncoding("GBK") : new UTF8Encoding(false);
     using var p = new Process();
     p.StartInfo = new ProcessStartInfo(isWin ? "cmd.exe" : "/bin/bash", isWin ? $"/c {cmd}" : $"-c \"{cmd}\"")
     {
@@ -386,24 +445,27 @@ string RunCmd(string? cmd)
         StandardOutputEncoding = consoleEncoding,
         StandardErrorEncoding = consoleEncoding
     };
+
+    if (!isWin && !string.IsNullOrEmpty(askPassPath))
+    {
+        p.StartInfo.EnvironmentVariables["SUDO_ASKPASS"] = askPassPath;
+    }
     
     var outputBuilder = new StringBuilder();
     var errorBuilder = new StringBuilder();
-    p.OutputDataReceived += (sender, e) => {
-        if (e.Data != null)
-        {
-            Console.WriteLine(e.Data);
-            outputBuilder.AppendLine(e.Data);
-        }
+    p.OutputDataReceived += (sender, e) =>
+    {
+        if (e.Data == null) return;
+        Console.WriteLine(e.Data);
+        outputBuilder.AppendLine(e.Data);
     };
-    p.ErrorDataReceived += (sender, e) => {
-        if (e.Data != null)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine(e.Data);
-            Console.ResetColor();
-            errorBuilder.AppendLine(e.Data);
-        }
+    p.ErrorDataReceived += (sender, e) =>
+    {
+        if (e.Data == null) return;
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine(e.Data);
+        Console.ResetColor();
+        errorBuilder.AppendLine(e.Data);
     };
     
     try
@@ -417,21 +479,37 @@ string RunCmd(string? cmd)
     {
         return $"[执行异常] {ex.Message}";
     }
+    finally
+    {
+        if (!string.IsNullOrEmpty(askPassPath) && File.Exists(askPassPath))
+        {
+            try { File.Delete(askPassPath); } catch { }
+        }
+    }
     
-    string err = errorBuilder.ToString();
-    string outStr = outputBuilder.ToString();
-    var errLines = err.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-    var outLines = outStr.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+    var err = errorBuilder.ToString();
+    var outStr = outputBuilder.ToString();
+    var errLines = err.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+    var outLines = outStr.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
     var compressedErr = UniversalLogCompressor.CompressLogs(errLines);
     var compressedOut = UniversalLogCompressor.CompressLogs(outLines);
-    string finalErr = string.Join("\n", compressedErr).Trim();
-    string finalOut = string.Join("\n", compressedOut).Trim();
-    
-    if (!string.IsNullOrWhiteSpace(finalErr))
+    var finalErr = string.Join("\n", compressedErr).Trim();
+    var finalOut = string.Join("\n", compressedOut).Trim();
+
+    string logDir = Path.Combine("logs", DateTime.Now.ToString("yyyy-MM-dd"));
+    if (!Directory.Exists(logDir))
     {
-        return $"[标准错误/进度信息]\n{finalErr}\n[标准输出]\n{finalOut}";
+        Directory.CreateDirectory(logDir);
     }
-    return finalOut;
+
+    var logFileName = Path.Combine(logDir, $"cmd_log_{DateTime.Now:HHmmss_ffff}.txt");
+    var logContent = $"[执行命令]\n{cmd}\n\n[标准错误]\n{finalErr}\n\n[标准输出]\n{finalOut}";
+    File.WriteAllText(logFileName, logContent, Encoding.UTF8);
+
+    unclaimedLogs.Add(logFileName);
+
+    var resultString = !string.IsNullOrWhiteSpace(finalErr) ? $"[标准错误/进度信息]\n{finalErr}\n[标准输出]\n{finalOut}" : finalOut;
+    return $"{resultString}\n\n[系统提示] 本次执行输出已保存到：{logFileName}。请调用 update_summary，系统会自动将该日志归档到你的摘要下。";
 }
 
 string ReadFile(string? path)
