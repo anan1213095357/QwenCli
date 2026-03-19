@@ -257,7 +257,7 @@ while (true)
                 }
                 else if (fnName == "update_summary")
                 {
-                    string newStep = tempArgs?["step_progress"]?.ToString() ?? "";
+                    string newStep = tempArgs?["new_summary"]?.ToString() ?? ""; 
                     if (currentSummary == "暂无任务进展") currentSummary = "";
                     string timestamp = DateTime.Now.ToString("HH:mm:ss");
                     currentSummary += $"\n[{timestamp}] - {newStep}";
