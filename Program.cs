@@ -346,35 +346,80 @@ string ReadPasswordHidden()
 string RunCmd(string? cmd)
 {
     if (string.IsNullOrEmpty(cmd)) return "[执行失败] 命令为空";
+    bool isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    if (!string.IsNullOrEmpty(sudoPassword))
+    {
+        // 非 Windows 环境（Linux/Mac）：如果大模型用了 sudo 但忘了加 -S，强制注入免交互管道
+        if (!isWin && cmd.Contains("sudo ") && !cmd.Contains("-S"))
+        {
+            string safePwd = sudoPassword.Replace("'", "'\\''");
+            cmd = cmd.Replace("sudo ", $"echo '{safePwd}' | sudo -S ");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("[底层拦截] 检测到 Mac/Linux 原生 sudo，已自动注入免交互提权管道...");
+            Console.ResetColor();
+        }
+        else if (isWin && (cmd.Contains("sudo ") || cmd.Contains("runas ")))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("[底层拦截] 警告：Windows 环境下检测到提权命令。由于 UAC 限制，可能需要手动授权或导致执行挂起。");
+            Console.ResetColor();
+        }
+    }
     Console.ForegroundColor = ConsoleColor.DarkGray;
     Console.WriteLine($"[执行中] {cmd}");
     Console.ResetColor();
-
-    bool isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-    Encoding consoleEncoding = isWin ? Encoding.GetEncoding("GBK") : Encoding.UTF8;
-
+    Encoding consoleEncoding = isWin ? Encoding.GetEncoding("GBK") : new UTF8Encoding(false);
     using var p = new Process();
     p.StartInfo = new ProcessStartInfo(isWin ? "cmd.exe" : "/bin/bash", isWin ? $"/c {cmd}" : $"-c \"{cmd}\"")
     {
-        RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
-        StandardOutputEncoding = consoleEncoding, StandardErrorEncoding = consoleEncoding
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        StandardOutputEncoding = consoleEncoding,
+        StandardErrorEncoding = consoleEncoding
     };
-
     var outputBuilder = new StringBuilder();
     var errorBuilder = new StringBuilder();
-
-    p.OutputDataReceived += (sender, e) => { if (e.Data != null) { Console.WriteLine(e.Data); outputBuilder.AppendLine(e.Data); } };
-    p.ErrorDataReceived += (sender, e) => { if (e.Data != null) { Console.ForegroundColor = ConsoleColor.DarkYellow; Console.WriteLine(e.Data); Console.ResetColor(); errorBuilder.AppendLine(e.Data); } };
-
-    try { p.Start(); p.BeginOutputReadLine(); p.BeginErrorReadLine(); p.WaitForExit(); }
-    catch (Exception ex) { return $"[执行异常] {ex.Message}"; }
-
-    var errLines = errorBuilder.ToString().Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-    var outLines = outputBuilder.ToString().Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-    string finalErr = string.Join("\n", UniversalLogCompressor.CompressLogs(errLines)).Trim();
-    string finalOut = string.Join("\n", UniversalLogCompressor.CompressLogs(outLines)).Trim();
-
-    if (!string.IsNullOrWhiteSpace(finalErr)) return $"[标准错误/进度信息]\n{finalErr}\n[标准输出]\n{finalOut}";
+    p.OutputDataReceived += (sender, e) => {
+        if (e.Data != null)
+        {
+            Console.WriteLine(e.Data);
+            outputBuilder.AppendLine(e.Data);
+        }
+    };
+    p.ErrorDataReceived += (sender, e) => {
+        if (e.Data != null)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine(e.Data);
+            Console.ResetColor();
+            errorBuilder.AppendLine(e.Data);
+        }
+    };
+    try
+    {
+        p.Start();
+        p.BeginOutputReadLine();
+        p.BeginErrorReadLine();
+        p.WaitForExit();
+    }
+    catch (Exception ex)
+    {
+        return $"[执行异常] {ex.Message}";
+    }
+    string err = errorBuilder.ToString();
+    string outStr = outputBuilder.ToString();
+    var errLines = err.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+    var outLines = outStr.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+    var compressedErr = UniversalLogCompressor.CompressLogs(errLines);
+    var compressedOut = UniversalLogCompressor.CompressLogs(outLines);
+    string finalErr = string.Join("\n", compressedErr).Trim();
+    string finalOut = string.Join("\n", compressedOut).Trim();
+    if (!string.IsNullOrWhiteSpace(finalErr))
+    {
+        return $"[标准错误/进度信息]\n{finalErr}\n[标准输出]\n{finalOut}";
+    }
     return finalOut;
 }
 
