@@ -9,9 +9,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 // ==========================================
-// 0. 环境初始化与路径修正
+// 0. 环境初始化与路径修正 (解决 Mac 下双击运行找不到配置的问题)
 // ==========================================
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
@@ -53,15 +55,17 @@ if (!File.Exists("appsettings.json"))
     return;
 }
 
-// 🌟【核心改动】：新增了记忆管理专属工具
+// 包含所有 7 个核心工具的定义
 var tools = JsonNode.Parse("""
 [
     { "type": "function", "function": { "name": "execute_command", "description": "执行终端命令", "parameters": { "type": "object", "properties": { "command": { "type": "string" } }, "required": ["command"] } } },
     { "type": "function", "function": { "name": "read_file", "description": "读文件", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" } }, "required": ["file_path"] } } },
-    { "type": "function", "function": { "name": "write_file", "description": "写文件或局部修改文件。", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" }, "content": { "type": "string" }, "old_content": { "type": "string", "description": "(可选) 精确替换内容。" } }, "required": ["file_path", "content"] } } },
+    { "type": "function", "function": { "name": "write_file", "description": "写文件或局部修改文件。局部修改必须提供 old_content。", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" }, "content": { "type": "string" }, "old_content": { "type": "string" } }, "required": ["file_path", "content"] } } },
+    { "type": "function", "function": { "name": "read_local_image", "description": "看图", "parameters": { "type": "object", "properties": { "file_path": { "type": "string" } }, "required": ["file_path"] } } },
     { "type": "function", "function": { "name": "search_content", "description": "全局搜索关键字。", "parameters": { "type": "object", "properties": { "keyword": { "type": "string" }, "directory": { "type": "string" }, "file_pattern": { "type": "string" } }, "required": ["keyword"] } } },
-    { "type": "function", "function": { "name": "update_summary", "description": "覆写当前任务的全局摘要。每当你解决了一个阶段性问题或发现了重要信息，务必调用此工具将最新进度和接下来的计划写入摘要，以免在后续对话中遗忘。", "parameters": { "type": "object", "properties": { "new_summary": { "type": "string", "description": "完整的最新摘要内容，这会完全覆盖旧摘要。" } }, "required": ["new_summary"] } } },
-    { "type": "function", "function": { "name": "require_full_context", "description": "请求完整历史记录。如果你发现当前的摘要信息不足以支撑推理（例如需要查看几步之前的具体代码、路径或长段报错），调用此工具，系统会在下一轮附带所有历史对话给你。", "parameters": { "type": "object", "properties": {} } } }
+    { "type": "function", "function": { "name": "update_summary", "description": "覆写当前任务的全局摘要。每当解决阶段性问题，务必调用此工具将最新进度和接下来的计划写入摘要。", "parameters": { "type": "object", "properties": { "new_summary": { "type": "string" } }, "required": ["new_summary"] } } },
+    { "type": "function", "function": { "name": "require_full_context", "description": "请求完整历史记录。如果你发现当前的摘要信息不足以支撑推理，调用此工具。", "parameters": { "type": "object", "properties": {} } } },
+    { "type": "function", "function": { "name": "finish_task", "description": "当用户的最终目标已彻底完成时调用此工具。这会预约清空当前的上下文记忆和任务摘要，确保下一次接收新任务时处于干净的状态。", "parameters": { "type": "object", "properties": {} } } }
 ]
 """);
 
@@ -72,6 +76,7 @@ Console.InputEncoding = Encoding.UTF8;
 var apiKey = GetConfig("ApiKey");
 if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your")) return;
 
+// 隐式读取密码
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.Write("请输入本机 Sudo/Admin 密码(用于全自动提权，无密码或不提供请直接回车): ");
 Console.ResetColor();
@@ -81,16 +86,15 @@ string sudoInstruction = string.IsNullOrEmpty(sudoPassword)
     ? "" 
     : $"用户已授权 sudo 密码。如果遇到提权，请严格使用: echo '{sudoPassword.Replace("'", "'\\''")}' | sudo -S <命令> 。";
 
-// 🌟【核心改动】：动态记忆管理变量
+// 记忆管理变量
 string checkpointPath = "full_history.json";
 string summaryPath = "session_summary.txt";
 JsonArray fullHistory = new JsonArray();
 string currentSummary = "暂无任务进展";
 
-// 加载历史摘要
+// 恢复记忆逻辑
 if (File.Exists(summaryPath)) currentSummary = File.ReadAllText(summaryPath, Encoding.UTF8);
 
-// 加载历史记录并询问是否恢复
 if (File.Exists(checkpointPath))
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -112,7 +116,7 @@ if (File.Exists(checkpointPath))
     else
     {
         File.Delete(checkpointPath);
-        File.Delete(summaryPath);
+        if (File.Exists(summaryPath)) File.Delete(summaryPath);
         currentSummary = "暂无任务进展";
     }
 }
@@ -141,7 +145,7 @@ async Task Think(CancellationToken ct)
 
 Console.Clear();
 Console.ForegroundColor = ConsoleColor.DarkGray;
-Console.WriteLine("v2.0.0 | 千问跨平台运维工具 (动态摘要架构) by 奶茶叔叔\n");
+Console.WriteLine("v3.0.0 | 千问跨平台终极运维 Agent by 奶茶叔叔\n");
 Console.ResetColor();
 
 while (true)
@@ -152,9 +156,9 @@ while (true)
     if (string.IsNullOrEmpty(input)) continue;
     if (input.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
 
-    // 🌟【核心改动】：本轮交互的局部上下文
     JsonArray currentRoundMessages = new JsonArray();
-    bool useFullContext = false; // 标记是否触发了完整上下文加载
+    bool useFullContext = false; 
+    bool requireReset = false; // 标记本轮对话结束后是否清空记忆
 
     var userMsg = new JsonObject { ["role"] = "user", ["content"] = input };
     currentRoundMessages.Add(userMsg.DeepClone());
@@ -168,12 +172,13 @@ while (true)
         using var cts = new CancellationTokenSource();
         var animTask = Think(cts.Token);
 
-        // 🌟【核心改动】：组装动态 Payload，节省海量 Token
+        // 构建带有最新摘要的系统提示词
         string systemPromptText = $@"你是一个高级运维自动化 Agent。当前系统：{RuntimeInformation.OSDescription}。
 {sudoInstruction}
 【记忆管理规则】：你目前处于【摘要驱动模式】。为节省Token，你默认只能看到下方的【当前任务摘要】和用户的【最新指令】。
-如果你发现依据摘要不足以写出代码或执行命令，请立即调用 `require_full_context` 工具获取完整记录。
-每完成一个阶段性任务，务必调用 `update_summary` 覆盖更新当前的进展！
+1. 如果你发现依据摘要不足以写出代码或执行命令，请立即调用 `require_full_context` 工具获取完整记录。
+2. 每完成一个阶段性任务，务必调用 `update_summary` 覆盖更新当前的进展！
+🚨 3. 当判定用户交代的所有目标均已彻底完成时，必须且只能调用 `finish_task` 工具来清理环境，然后向用户做最后的结果汇报。🚨
 
 【当前任务摘要】：
 {currentSummary}";
@@ -181,15 +186,9 @@ while (true)
         var payloadMessages = new JsonArray();
         payloadMessages.Add(new JsonObject { ["role"] = "system", ["content"] = systemPromptText });
 
-        // 根据大模型的意图，决定是塞入完整历史，还是只塞入本轮对话
-        if (useFullContext)
-        {
-            foreach (var msg in fullHistory) payloadMessages.Add(msg.DeepClone());
-        }
-        else
-        {
-            foreach (var msg in currentRoundMessages) payloadMessages.Add(msg.DeepClone());
-        }
+        // 动态上下文加载
+        if (useFullContext) foreach (var msg in fullHistory) payloadMessages.Add(msg.DeepClone());
+        else foreach (var msg in currentRoundMessages) payloadMessages.Add(msg.DeepClone());
 
         var payload = new JsonObject
         {
@@ -203,22 +202,13 @@ while (true)
         var content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json");
         HttpResponseMessage res;
         
-        try 
-        {
-            res = await client.PostAsync(endpoint, content);
-        }
-        catch(Exception ex)
-        {
-            cts.Cancel(); await animTask;
-            Console.WriteLine($"\n[网络错误] 请求 API 失败: {ex.Message}");
-            break;
-        }
+        try { res = await client.PostAsync(endpoint, content); }
+        catch(Exception ex) { cts.Cancel(); await animTask; Console.WriteLine($"\n[网络错误] 请求 API 失败: {ex.Message}"); break; }
 
         var responseString = await res.Content.ReadAsStringAsync();
         var msg = JsonNode.Parse(responseString)?["choices"]?[0]?["message"];
 
         cts.Cancel(); await animTask;
-
         if (msg == null) break;
 
         currentRoundMessages.Add(msg.DeepClone());
@@ -238,8 +228,17 @@ while (true)
                 Console.ResetColor();
 
                 string result = "";
-                // 🌟【核心改动】：处理新的记忆管理工具
-                if (fnName == "update_summary")
+                
+                // 处理特殊记忆与生命周期工具
+                if (fnName == "finish_task")
+                {
+                    requireReset = true; 
+                    result = "[系统提示] 上下文清理已预约，这将在你给出最后一句回复后执行。请现在用正常的自然语言向用户总结任务完成情况。";
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("[内部状态] Agent 判定任务结束，已预约清理上下文...");
+                    Console.ResetColor();
+                }
+                else if (fnName == "update_summary")
                 {
                     currentSummary = tempArgs?["new_summary"]?.ToString() ?? currentSummary;
                     File.WriteAllText(summaryPath, currentSummary, Encoding.UTF8);
@@ -250,10 +249,10 @@ while (true)
                 }
                 else if (fnName == "require_full_context")
                 {
-                    useFullContext = true; // 触发全量加载开关
-                    result = "[系统提示] 已为你开启完整历史上下文，请基于刚收到的完整记录继续推理。";
+                    useFullContext = true; 
+                    result = "[系统提示] 已开启完整上下文，请继续推理。";
                     Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[内部状态] Agent 主动读取了历史上下文。");
+                    Console.WriteLine($"[内部状态] 主动读取了历史。");
                     Console.ResetColor();
                 }
                 else // 处理常规工具
@@ -263,8 +262,9 @@ while (true)
                         "execute_command" => RunCmd(tempArgs?["command"]?.ToString()),
                         "read_file" => ReadFile(tempArgs?["file_path"]?.ToString()),
                         "write_file" => WriteFile(tempArgs?["file_path"]?.ToString(), tempArgs?["content"]?.ToString(), tempArgs?["old_content"]?.ToString()),
+                        "read_local_image" => ReadImg(tempArgs?["file_path"]?.ToString()),
                         "search_content" => SearchContent(tempArgs?["directory"]?.ToString(), tempArgs?["keyword"]?.ToString(), tempArgs?["file_pattern"]?.ToString()),
-                        _ => "[未知工具] 不支持的工具调用"
+                        _ => "[未知工具] 不支持"
                     };
                 }
 
@@ -288,6 +288,19 @@ while (true)
             Console.ResetColor();
             isDone = true; 
         }
+    }
+
+    // 物理清理：如果 Agent 判定任务结束，在这轮彻底清空硬盘和内存里的状态
+    if (requireReset)
+    {
+        fullHistory.Clear();
+        if (File.Exists(checkpointPath)) File.Delete(checkpointPath); 
+        if (File.Exists(summaryPath)) File.Delete(summaryPath);       
+        currentSummary = "暂无任务进展";
+        
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("\n✅ [生命周期] 本次任务上下文已全自动清理！Agent 已就绪，随时接收新任务。");
+        Console.ResetColor();
     }
 }
 
@@ -392,6 +405,19 @@ string ReadTextSmart(string path, out Encoding detectedEncoding)
     byte[] bytes = File.ReadAllBytes(path);
     try { detectedEncoding = new UTF8Encoding(false, true); return detectedEncoding.GetString(bytes); }
     catch { detectedEncoding = Encoding.GetEncoding("GBK"); return detectedEncoding.GetString(bytes); }
+}
+
+string ReadImg(string? path)
+{
+    Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine($"[读取图片] {path}"); Console.ResetColor();
+    if (string.IsNullOrEmpty(path) || !File.Exists(path)) return "[文件不存在]";
+    try
+    {
+        var b = File.ReadAllBytes(path);
+        if (b.Length > 2000000) return "[图片过大] 请上传小于 2MB 的图片";
+        return $"data:image/{Path.GetExtension(path).Substring(1)};base64,{Convert.ToBase64String(b)}";
+    }
+    catch (Exception ex) { return $"[读取失败] {ex.Message}"; }
 }
 
 string SearchContent(string? dir, string? keyword, string? pattern)
