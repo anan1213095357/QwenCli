@@ -5,12 +5,19 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-v1.5.0-orange?style=flat-square)
+![Size](https://img.shields.io/badge/%F0%9F%A6%9E%20Package%20Size-Only%202MB-FF4500?style=for-the-badge)
 
 **Let AI Be Your DevOps Assistant | Intelligent Automation Expert in the Command Line**
 
 **🌐 Language | 语言切换:** [English](README_EN.md) | [中文](README.md)
 
 </div>
+
+---
+
+> ## 🦞 The Smallest CLI on the Internet — Only **2MB** After Packaging!
+>
+> QwenCLI leverages .NET AOT compilation to produce an extremely compact binary. **A single self-contained executable, only ~2MB in size** — the smallest AI-powered CLI tool of its kind available anywhere. Lightweight yet powerful: just copy and run anywhere, no deployment headaches!
 
 ---
 
@@ -172,6 +179,7 @@ QwenCLI/
 
 ### Project Features
 
+- 🦞 **Ultra-Compact** - AOT compiled, **only ~2MB** after packaging — the smallest tool of its kind
 - ✅ **AOT Compilation** - Smaller size, faster startup speed
 - ✅ **Cross-Platform** - Supports Windows, Linux, macOS
 - ✅ **Streaming Conversation** - Supports multi-turn contextual dialogue

@@ -6,12 +6,19 @@
 ![Arch](https://img.shields.io/badge/Arch-x86%20%7C%20x64%20%7C%20ARM32%20%7C%20ARM64-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-v1.5.0-orange?style=flat-square)
+![Size](https://img.shields.io/badge/%F0%9F%A6%9E%20打包体积-仅%202MB-FF4500?style=for-the-badge)
 
 **让 AI 成为你的运维助手 | 命令行里的智能自动化专家**
 
 **🌐 语言切换 | Language:** [中文](README.md) | [English](README_EN.md)
 
 </div>
+
+---
+
+> ## 🦞 全网最小龙虾，打包后仅 **2MB**！
+>
+> QwenCLI 采用 .NET AOT 编译技术，发布产物体积极致精简，**单文件可执行，打包后仅约 2MB**，是目前全网同类 AI 命令行工具中体积最小的存在。轻量不失强大，随处复制随处运行，再也不用担心部署负担！
 
 ---
 
@@ -172,6 +179,7 @@ QwenCLI/
 
 ### 项目特性
 
+- 🦞 **超小体积** - AOT 编译，打包后**仅约 2MB**，全网最小同类工具
 - ✅ **AOT 编译** - 更小的体积、更快的启动速度
 - ✅ **跨平台** - 支持 Windows、Linux、macOS
 - ✅ **流式对话** - 支持多轮上下文对话
